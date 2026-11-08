@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ĐẠI CƯƠNG VỀ POLYMER - Game Ô Chữ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b132b;
+            --panel-bg: #111c33;
+            --cell-bg: #1c2841;
+            --cell-border: #2a3b5c;
+            --accent-yellow: #facc15;
+            --accent-green: #22c55e;
+            --text-light: #e2e8f0;
+            --cell-size: 45px;
+        }
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-light);
+            font-family: 'Quicksand', sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; overflow-x: hidden;
+        }
+        h1 { color: var(--accent-yellow); margin-top: 30px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(250, 204, 21, 0.3);}
+        
+        .board-wrapper { 
+            margin: 30px 0; 
+            overflow-x: auto; 
+            max-width: 100vw; 
+            padding: 20px 0;
+            width: 100%;
+            text-align: center; 
+        }
+        #grid-container { 
+            display: inline-grid; 
+            gap: 8px; 
+            margin: 0 auto;
+            padding: 0 60px; 
+        }
+        .cw-cell {
+            width: var(--cell-size); height: var(--cell-size); background-color: var(--cell-bg);
+            border: 2px solid var(--cell-border); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: calc(var(--cell-size) * 0.55); font-weight: 800; color: transparent;
+            position: relative; transition: all 0.3s;
+        }
+        .cw-cell.correct { background-color: var(--accent-green); border-color: #16a34a; color: white; box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);}
+        
+        .cw-cell.vertical-key { 
+            border-color: var(--accent-yellow); 
+            border-bottom: 4px solid var(--accent-yellow); 
+            box-shadow: inset 0 0 8px rgba(250, 204, 21, 0.2); 
+        }
+        .cw-cell.vertical-key.correct { 
+            background-color: var(--accent-yellow); 
+            border-color: #ca8a04; 
+            border-bottom: 4px solid #a16207; 
+            color: #713f12; 
+            box-shadow: 0 0 15px rgba(250, 204, 21, 0.5);
+        }
+        
+        .row-number {
+            position: absolute; left: calc(var(--cell-size) * -1.2); width: calc(var(--cell-size) * 0.7); height: calc(var(--cell-size) * 0.7);
+            border: 2px solid #64748b; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: calc(var(--cell-size) * 0.35); color: #cbd5e1; cursor: pointer;
+            transition: 0.2s; background: var(--bg-color); z-index: 10;
+        }
+        .row-number:hover, .row-number.active { border-color: var(--accent-yellow); color: var(--accent-yellow); transform: scale(1.1); box-shadow: 0 0 10px rgba(250, 204, 21, 0.3);}
+        .row-number.completed { border-color: var(--accent-green); color: var(--accent-green); background: rgba(34, 197, 94, 0.1); cursor: default; }
+
+        .keyword-area {
+            background-color: var(--panel-bg); border: 2px dashed #ca8a04;
+            border-radius: 16px; padding: 20px 40px; text-align: center; margin-top: 10px;
+            width: 90%; max-width: 700px;
+        }
+        .keyword-title { color: var(--accent-yellow); font-size: 18px; font-weight: 800; margin: 0 0 10px 0; }
+        .keyword-subtitle { font-size: 14px; color: #94a3b8; margin: 0 0 20px 0; }
+        .keyword-boxes { display: flex; justify-content: center; gap: 12px; }
+        .kw-box {
+            width: 45px; height: 45px; border: 2px dashed #f87171; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 800; color: #fca5a5; background: rgba(255,255,255,0.05);
+        }
+        .kw-box.revealed { background: white; border: 2px solid #ef4444; color: #dc2626; box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+
+        .btn-guess {
+            background: #d97706; color: white; border: none; padding: 12px 30px;
+            border-radius: 30px; font-size: 16px; font-weight: 800; margin-top: 25px;
+            cursor: pointer; box-shadow: 0 4px 15px rgba(217, 119, 6, 0.4); transition: 0.2s; border: 2px solid #f59e0b;
+        }
+        .btn-guess:hover { transform: translateY(-3px); background: #f59e0b; }
+
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(5px);}
+        .modal { background: var(--panel-bg); padding: 35px; border-radius: 16px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid #1e293b;}
+        .modal h2 { color: white; margin-top: 0; font-size: 24px;}
+        .modal p { color: #cbd5e1; font-size: 15px; margin-bottom: 20px;}
+        .modal input { width: 100%; padding: 14px; background: transparent; border: 2px solid #3b82f6; border-radius: 8px; color: white; font-size: 16px; margin-bottom: 15px; outline: none; font-family: inherit; font-weight: 600;}
+        .modal input:focus { box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+        .btn-start { background: var(--accent-yellow); color: #713f12; font-weight: 800; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.2s; width: 100%; }
+        .btn-start:hover { filter: brightness(1.1); transform: scale(1.02); }
+
+        .question-panel {
+            position: fixed; bottom: -150%; left: 50%; transform: translateX(-50%);
+            width: 95%; max-width: 800px; background: #e2e8f0; border-radius: 16px 16px 0 0;
+            padding: 20px 30px 30px 30px; box-shadow: 0 -10px 30px rgba(0,0,0,0.3);
+            transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 50; display: flex; flex-direction: column; gap: 15px;
+        }
+        .question-panel.active { bottom: 0; }
+        .qp-header { display: flex; justify-content: space-between; align-items: center; }
+        .qp-text { color: #d97706; font-size: 18px; font-weight: 800; margin: 0; flex: 1; text-align: center;}
+        .timer-badge { background: #475569; color: var(--accent-yellow); padding: 8px 15px; border-radius: 8px; font-weight: 800; font-size: 16px; border: 2px solid #ca8a04; min-width: 80px; text-align: center;}
+        .timer-badge.warning { background: #ef4444; color: white; border-color: #991b1b; animation: pulse 1s infinite;}
+        .qp-input-group { display: flex; gap: 15px; }
+        .qp-input { flex: 1; padding: 15px; border: 2px solid #cbd5e1; border-radius: 10px; font-size: 18px; font-weight: 700; text-transform: uppercase; outline: none; background: #f8fafc; color: #1e293b;}
+        .qp-input:focus { border-color: var(--accent-green); }
+        .btn-check { background: var(--accent-green); color: white; border: none; padding: 0 30px; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.2s;}
+        .btn-check:hover { background: #16a34a; transform: translateY(-2px); }
+
+        #leaderboard-modal .modal { max-width: 550px; }
+        .lb-table { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left; }
+        .lb-table th { color: var(--accent-yellow); font-size: 13px; font-weight: 800; border-bottom: 2px solid #334155; padding: 10px 5px; }
+        .lb-table td { padding: 12px 5px; border-bottom: 1px solid #1e293b; font-size: 15px; font-weight: 600; color: #cbd5e1;}
+        .lb-row.me { background: rgba(16, 185, 129, 0.15); color: #34d399; border-radius: 8px; border: 1px solid #059669;}
+        .lb-row.me td { border-bottom: none; color: #10b981; }
+        
+        .hidden { display: none !important; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        @media (max-width: 600px) {
+            .qp-input-group { flex-direction: column; }
+            .btn-check { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 id="game-title">Ô CHỮ Hóa học</h1>
+
+    <p style="text-align: center; color: #fbbf24; font-size: 1.1rem; margin-top: -10px; margin-bottom: 10px; font-weight: bold; padding: 0 10px;">👇 HƯỚNG DẪN: Nhấn vào các ô vuông hoặc con số để xem câu hỏi và điền đáp án! 👇</p>
+
+    <div class="board-wrapper">
+        <div id="grid-container"></div>
+    </div>
+
+    <div id="clues-list" style="background: var(--panel-bg); width: 90%; max-width: 700px; margin: 0 auto 20px auto; padding: 20px; border-radius: 12px; border: 2px dashed #3b82f6; text-align: left; max-height: 300px; overflow-y: auto;">
+        <h3 style="color: #3b82f6; margin-top: 0; font-size: 18px;"><i class="fa-solid fa-list"></i> DANH SÁCH CÂU HỎI:</h3>
+        <div id="clues-content" style="line-height: 1.6; color: #cbd5e1; font-size: 16px;"></div>
+    </div>
+
+    <div class="keyword-area">
+        <h3 class="keyword-title"><i class="fa-solid fa-key"></i> TỪ KHÓA BÍ MẬT <i class="fa-solid fa-key"></i></h3>
+        <p class="keyword-subtitle">(Hãy suy luận và đoán từ khóa dọc được gạch chân nhé)</p>
+        <div class="keyword-boxes" id="keyword-boxes"></div>
+    </div>
+    <button class="btn-guess" onclick="guessKeyword()"><i class="fa-solid fa-key"></i> ĐOÁN TỪ KHÓA BÍ MẬT</button>
+
+    <div class="question-panel" id="question-panel">
+        <div class="qp-header">
+            <p class="qp-text" id="qp-text">Hàng 1: ...</p>
+            <div class="timer-badge" id="timer-badge"><i class="fa-solid fa-hourglass-half"></i> <span id="timer-text">15s</span></div>
+        </div>
+        <div class="qp-input-group">
+            <input type="text" id="qp-input" class="qp-input" placeholder="NHẬP ĐÁP ÁN Ở ĐÂY..." autocomplete="off">
+            <button class="btn-check" onclick="submitAnswer()">KIỂM TRA</button>
+        </div>
+    </div>
+
+    <div class="overlay" id="welcome-overlay">
+        <div class="modal">
+            <h2>Chào mừng em!</h2>
+            <p>Hãy nhập thông tin để ghi danh vào Bảng Thi Đua nhé:</p>
+            <input type="text" id="player-school" placeholder="Tên Trường (VD: THCS Lê Lợi)..." autocomplete="off">
+            <input type="text" id="player-class" placeholder="Lớp (VD: 6A1)..." autocomplete="off">
+            <input type="text" id="player-name" placeholder="Họ và tên em..." autocomplete="off">
+            <button class="btn-start" onclick="startGame()">Bắt đầu ngay</button>
+        </div>
+    </div>
+
+    <div class="overlay hidden" id="leaderboard-overlay">
+        <div class="modal">
+            <h2><i class="fa-solid fa-trophy" style="color:#facc15"></i> BẢNG TỔNG SẮP THI ĐUA</h2>
+            <table class="lb-table">
+                <thead><tr><th>HẠNG</th><th>HỌ TÊN</th><th>SỐ CÂU</th><th>THỜI GIAN</th></tr></thead>
+                <tbody id="lb-body"></tbody>
+            </table>
+            <button class="btn-start" style="margin-top:20px;" onclick="location.reload()">Đóng / Chơi lại</button>
+        </div>
+    </div>
+
+    <script>
+        const gameData = [{"question":"Đại lượng đặc trưng cho độ lớn của lực tác động lên một đơn vị diện tích theo hướng vuông góc.","answer":"APSUAT","offset":1,"intersectChar":"P"},{"question":"Vật liệu được sử dụng phổ biến làm săm, lốp xe.","answer":"CAOSU","offset":2,"intersectChar":"O"},{"question":"Tên loại polysaccharide có dạng sợi.","answer":"CELLULOSE","offset":2,"intersectChar":"L"},{"question":"Tên alkene đầu tiên trong dãy đồng đẳng.","answer":"ETHYLENE","offset":3,"intersectChar":"Y"},{"question":"Tên gọi chung cho các chất đầu khi tham gia phản ứng trùng hợp.","answer":"MONOMER","offset":0,"intersectChar":"M"},{"question":"Động từ chỉ hành động gắn với nhau để bổ sung cho nhau.","answer":"KETHOP","offset":1,"intersectChar":"E"},{"question":"Danh từ chỉ sự sắp xếp có trật tự của các yếu tố cấu thành sự vật","answer":"CAUTRUC","offset":4,"intersectChar":"R"}];
+        const verticalWord = "POLYMER";
+        const lessonName = "ĐẠI CƯƠNG VỀ POLYMER";
+        const successAudioB64 = "";
+        const failAudioB64 = "";
+        const gameUUID = "ochu_mw7ysqq8";
+        
+        let player = { name: '', class: '', school: '', correct: 0, timeSeconds: 0 };
+        let activeRow = -1;
+        let timerInterval = null;
+        let timeLeft = 15;
+        let gameTimerInterval = null;
+        let completedRows = new Set();
+        
+        const grid = document.getElementById('grid-container');
+        let maxOff = 0, maxR = 0;
+        gameData.forEach(item => {
+            if(item.offset > maxOff) maxOff = item.offset;
+            let r = item.answer.length - item.offset - 1;
+            if(r > maxR) maxR = r;
+        });
+        let totalCols = maxOff + maxR + 1;
+        
+        function resizeBoard() {
+            let availableW = window.innerWidth - 80; 
+            let maxW = Math.min(availableW, 1100); 
+            let gap = 8;
+            let idealSize = Math.floor((maxW - (totalCols - 1) * gap) / totalCols);
+            let finalSize = Math.min(46, Math.max(20, idealSize)); 
+            document.documentElement.style.setProperty('--cell-size', finalSize + 'px');
+        }
+        window.addEventListener('resize', resizeBoard);
+        resizeBoard();
+
+        grid.style.gridTemplateColumns = `repeat(${totalCols}, var(--cell-size))`;
+
+        let cluesHtml = '';
+        gameData.forEach((item, rIdx) => {
+            cluesHtml += `<div style="margin-bottom: 12px; cursor: pointer; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.05);" onclick="openQuestion(${rIdx})" onmouseover="this.style.background='rgba(59, 130, 246, 0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'"><strong style="color: #fbbf24;">Câu ${rIdx + 1}:</strong> ${item.question}</div>`;
+
+            let startCol = maxOff - item.offset + 1;
+            for(let i=0; i<item.answer.length; i++){
+                let div = document.createElement('div');
+                div.className = 'cw-cell';
+                if(i === item.offset && verticalWord) div.classList.add('vertical-key');
+                div.style.gridRow = rIdx + 1; div.style.gridColumn = startCol + i;
+                div.dataset.char = item.answer[i]; 
+                div.dataset.row = rIdx;
+                div.id = `cell-${rIdx}-${i}`;
+                
+                div.onclick = () => openQuestion(rIdx); 
+                
+                if(i === 0) {
+                    let badge = document.createElement('div');
+                    badge.className = 'row-number'; 
+                    badge.innerText = rIdx + 1;
+                    badge.id = `badge-${rIdx}`;
+                    div.appendChild(badge);
+                }
+                grid.appendChild(div);
+            }
+        });
+        document.getElementById('clues-content').innerHTML = cluesHtml;
+
+        const kwContainer = document.getElementById('keyword-boxes');
+        if(verticalWord) {
+            for(let i=0; i<verticalWord.length; i++) {
+                let box = document.createElement('div');
+                box.className = 'kw-box';
+                box.innerText = '?';
+                box.id = `kw-${i}`;
+                kwContainer.appendChild(box);
+            }
+        } else {
+            document.querySelector('.keyword-area').style.display = 'none';
+            document.querySelector('.btn-guess').style.display = 'none';
+        }
+
+        function playSuccessSound() {
+            if (successAudioB64) { let a = new Audio(successAudioB64); a.play().catch(e => fallbackSuccessSound()); } 
+            else fallbackSuccessSound();
+        }
+
+        function fallbackSuccessSound() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                let msg = new SpeechSynthesisUtterance('Chúc mừng em');
+                msg.lang = 'vi-VN';
+                msg.rate = 1.2;
+                window.speechSynthesis.speak(msg);
+            }
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(); osc.stop(ctx.currentTime + 0.5);
+            } catch(e) {}
+        }
+
+        function playFailSound() {
+            if (failAudioB64) { let a = new Audio(failAudioB64); a.play().catch(e => fallbackFailSound()); } 
+            else fallbackFailSound();
+        }
+
+        function fallbackFailSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, ctx.currentTime); 
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(); osc.stop(ctx.currentTime + 0.4);
+            } catch(e) {}
+        }
+
+        function startGame() {
+            let s = document.getElementById('player-school').value.trim();
+            let c = document.getElementById('player-class').value.trim();
+            let n = document.getElementById('player-name').value.trim();
+            if(!s || !c || !n) { if (typeof Swal !== 'undefined') Swal.fire('Oops!','Em nhớ nhập đầy đủ Tên Trường, Lớp và Họ Tên nhé!','warning'); else alert('Em nhớ nhập đầy đủ thông tin nhé!'); return; }
+            player.name = n;
+            player.class = c;
+            player.school = s;
+            document.getElementById('welcome-overlay').classList.add('hidden');
+            gameTimerInterval = setInterval(() => { player.timeSeconds++; }, 1000);
+        }
+
+        function openQuestion(idx) {
+            if(completedRows.has(idx)) return; 
+            
+            document.querySelectorAll('.row-number').forEach(b => b.classList.remove('active'));
+            if(document.getElementById(`badge-${idx}`)) {
+                document.getElementById(`badge-${idx}`).classList.add('active');
+            }
+
+            activeRow = idx;
+            document.getElementById('qp-text').innerHTML = `Hàng ${idx+1}: ${gameData[idx].question}`;
+            document.getElementById('qp-input').value = '';
+            document.getElementById('question-panel').classList.add('active');
+            document.getElementById('qp-input').focus();
+            
+            clearInterval(timerInterval);
+            timeLeft = 15;
+            updateTimerDisplay();
+            document.getElementById('timer-badge').classList.remove('warning');
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if(timeLeft <= 5) document.getElementById('timer-badge').classList.add('warning');
+                if(timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeOut();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('timer-text').innerText = timeLeft + 's';
+        }
+
+        function handleTimeOut() {
+            document.getElementById('question-panel').classList.remove('active');
+            if (typeof Swal !== 'undefined') Swal.fire({ title: 'Hết giờ!', text: 'Em đã không kịp trả lời câu này.', icon: 'error', timer: 2000, showConfirmButton: false });
+            if(document.getElementById(`badge-${activeRow}`)){
+                document.getElementById(`badge-${activeRow}`).classList.remove('active');
+            }
+            completedRows.add(activeRow);
+            checkGameEnd();
+        }
+
+        document.getElementById('qp-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') submitAnswer();
+        });
+
+        function submitAnswer() {
+            let ans = removeAccents(document.getElementById('qp-input').value);
+            if(!ans) return;
+            
+            clearInterval(timerInterval);
+            document.getElementById('question-panel').classList.remove('active');
+            if(document.getElementById(`badge-${activeRow}`)){
+                document.getElementById(`badge-${activeRow}`).classList.remove('active');
+            }
+            completedRows.add(activeRow);
+            
+            if(ans === gameData[activeRow].answer) {
+                playSuccessSound();
+                player.correct++;
+                let cells = document.querySelectorAll(`.cw-cell[data-row="${activeRow}"]`);
+                cells.forEach(c => {
+                    c.innerText = c.dataset.char;
+                    c.classList.add('correct');
+                    if(c.classList.contains('vertical-key')) {
+                        let vIndex = Array.from(document.querySelectorAll('.cw-cell.vertical-key')).indexOf(c);
+                        if(document.getElementById(`kw-${vIndex}`)) {
+                            document.getElementById(`kw-${vIndex}`).innerText = c.dataset.char;
+                            document.getElementById(`kw-${vIndex}`).classList.add('revealed');
+                        }
+                    }
+                });
+                if(document.getElementById(`badge-${activeRow}`)){
+                    document.getElementById(`badge-${activeRow}`).classList.add('completed');
+                }
+                if (typeof Swal !== 'undefined') Swal.fire({ title: 'Tuyệt vời!', text: '+1 điểm', icon: 'success', timer: 1500, showConfirmButton: false });
+            } else {
+                playFailSound();
+                if (typeof Swal !== 'undefined') Swal.fire({ title: 'Sai rồi!', text: 'Đáp án chưa chính xác.', icon: 'error', timer: 1500, showConfirmButton: false });
+            }
+            setTimeout(checkGameEnd, 1500);
+        }
+
+        function removeAccents(str) {
+            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/Đ/g, 'D').replace(/đ/g, 'd').toUpperCase().replace(/\s+/g, '');
+        }
+
+        function guessKeyword() {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'ĐOÁN TỪ KHÓA BÍ MẬT',
+                    input: 'text',
+                    inputPlaceholder: 'Nhập từ khóa...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Chốt đáp án',
+                    cancelButtonText: 'Hủy'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        handleGuess(result.value);
+                    }
+                });
+            } else {
+                let guess = prompt('Nhập TỪ KHÓA BÍ MẬT:');
+                if(guess) handleGuess(guess);
+            }
+        }
+        
+        function handleGuess(rawGuess) {
+            let guess = removeAccents(rawGuess);
+            if(guess === verticalWord) {
+                playSuccessSound();
+                player.correct += 2; 
+                showLeaderboard();
+                fireConfetti();
+                if (typeof Swal !== 'undefined') Swal.fire('THIÊN TÀI!', 'Em đã đoán đúng Từ Khóa Bí Mật!', 'success');
+                else alert('THIÊN TÀI! Em đã đoán đúng Từ Khóa Bí Mật!');
+            } else {
+                playFailSound();
+                if (typeof Swal !== 'undefined') Swal.fire('Rất tiếc!', 'Từ khóa chưa chính xác, hãy mở thêm hàng ngang nhé.', 'error');
+                else alert('Rất tiếc! Từ khóa chưa chính xác.');
+            }
+        }
+
+        function checkGameEnd() {
+            if(completedRows.size === gameData.length) showLeaderboard();
+        }
+
+        function showLeaderboard() {
+            clearInterval(gameTimerInterval);
+            
+            let schoolStr = player.school.toUpperCase().replace(/\s+/g, '');
+            let classStr = player.class.toUpperCase().replace(/\s+/g, '');
+            let lbKey = gameUUID + '_' + schoolStr + '_' + classStr;
+            
+            let lb = JSON.parse(localStorage.getItem(lbKey)) || [];
+            
+            let currentRun = {name: player.name, correct: player.correct, timeSeconds: player.timeSeconds};
+            lb.push(currentRun);
+            
+            lb.sort((a, b) => b.correct - a.correct || a.timeSeconds - b.timeSeconds);
+            lb = lb.slice(0, 10); 
+            
+            localStorage.setItem(lbKey, JSON.stringify(lb));
+
+            let lbTitle = document.querySelector('#leaderboard-overlay h2');
+            if (lbTitle) {
+                lbTitle.innerHTML = `<i class="fa-solid fa-trophy" style="color:#facc15"></i> TỔNG SẮP: ${player.class.toUpperCase()} - ${player.school.toUpperCase()}`;
+            }
+
+            let tbody = document.getElementById('lb-body');
+            tbody.innerHTML = '';
+            lb.forEach((p, i) => {
+                let tr = document.createElement('tr');
+                let isMe = (p.name === player.name && p.correct === player.correct && p.timeSeconds === player.timeSeconds);
+                if(isMe) tr.className = 'lb-row me';
+                
+                let rankIcon = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : i + 1));
+                let displayName = isMe ? p.name + ' (Em)' : p.name;
+                
+                tr.innerHTML = `
+                    <td>${rankIcon}</td>
+                    <td>${displayName}</td>
+                    <td style="text-align:center; color: var(--accent-yellow);">${p.correct}</td>
+                    <td>${p.timeSeconds}s</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('leaderboard-overlay').classList.remove('hidden');
+        }
+
+        function fireConfetti() {
+            if(typeof confetti === 'undefined') return;
+            var duration = 4000; var end = Date.now() + duration;
+            (function frame() {
+                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#facc15', '#22c55e'] });
+                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#facc15', '#22c55e'] });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+    </script>
+</body>
+</html>
